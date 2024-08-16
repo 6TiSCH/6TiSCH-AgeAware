@@ -43,6 +43,8 @@ class Tsch(object):
 
         # local variables
         self.slotframes       = {}
+
+        #TODO: convert to stack
         self.txQueue          = []
         if self.settings.tsch_tx_queue_size >= 0:
             self.txQueueSize  = self.settings.tsch_tx_queue_size
@@ -434,15 +436,21 @@ class Tsch(object):
                         reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL
                     )
                 index = len(self.txQueue)
+                # for i, _ in enumerate(self.txQueue):
+                #     if self.txQueue[i][u'mac'][u'priority'] is False:
+                #         index = i
+                #         break
+                # arshi: always put priority packets at head of stack
+                self.txQueue.insert(0, packet)
+            else:
+                packet[u'mac'][u'priority'] = False
+                # add to txQueue
+                # arshi: put non-priority after priority packets in stack
                 for i, _ in enumerate(self.txQueue):
                     if self.txQueue[i][u'mac'][u'priority'] is False:
                         index = i
                         break
                 self.txQueue.insert(index, packet)
-            else:
-                packet[u'mac'][u'priority'] = False
-                # add to txQueue
-                self.txQueue    += [packet]
 
         if (
                 goOn
