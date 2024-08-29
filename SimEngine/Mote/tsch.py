@@ -435,7 +435,7 @@ class Tsch(object):
                         packet = packet_to_drop,
                         reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL
                     )
-                index = len(self.txQueue)
+                index2 = len(self.txQueue)
                 # for i, _ in enumerate(self.txQueue):
                 #     if self.txQueue[i][u'mac'][u'priority'] is False:
                 #         index = i
@@ -446,11 +446,12 @@ class Tsch(object):
                 packet[u'mac'][u'priority'] = False
                 # add to txQueue
                 # arshi: put non-priority after priority packets in stack
+                index2=0
                 for i, _ in enumerate(self.txQueue):
                     if self.txQueue[i][u'mac'][u'priority'] is False:
-                        index = i
+                        index2 = i
                         break
-                self.txQueue.insert(index, packet)
+                self.txQueue.insert(index2, packet)
 
         if (
                 goOn
