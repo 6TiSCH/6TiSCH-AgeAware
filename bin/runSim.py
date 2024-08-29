@@ -122,7 +122,6 @@ def runSimCombinations(params):
 
             # start simulation run
             simengine.start()
-
             # wait for simulation run to end
             simengine.join()
 

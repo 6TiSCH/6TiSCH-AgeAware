@@ -31,7 +31,8 @@ KPIS = [
     'lifetime_AA_years',
     'sync_time_s',
     'join_time_s',
-    'upstream_num_lost'
+    'upstream_num_lost',
+    'aoi'
 ]
 
 # ============================ main ===========================================
@@ -39,6 +40,7 @@ KPIS = [
 def main(options):
 
     #options.inputfolder = '/home/sekiro/6tisch-arshi/6tisch-simulator-a015d94da186/bin/simData'
+    options.inputfolder = 'E:/6TiSCH-AgeAware/bin/simData'
 
     # init
     data = OrderedDict()
@@ -71,6 +73,8 @@ def main(options):
         try:
             if key in ['lifetime_AA_years', 'latencies']:
                 plot_cdf(data, key, subfolder)
+            elif key == 'aoi':
+                plot_aoi(data,subfolder)
             else:
                 plot_box(data, key, subfolder)
 
@@ -105,6 +109,27 @@ def plot_box(data, key, subfolder):
     savefig(subfolder, key)
     plt.clf()
 
+def plot_aoi(data,subFolder):
+    
+    for k, values in data.items():
+        for i in range (0 ,len(values)):
+            asn_values = [int(item["asn"]) for item in values[i]]
+            aoi_values = [int(item["aoi"]) for item in values[i]]
+
+            # Plotting the data
+            plt.figure(figsize=(10, 6))
+            plt.plot(asn_values, aoi_values, marker='o', linestyle='-', color='blue')
+
+            # Adding labels and title
+            plt.xlabel('Time')
+            plt.ylabel('AOI')
+            plt.title('Time vs AOI')
+            plt.grid(True)
+            savefig(subFolder, "aoi_"+str(i)+ ".cdf")
+            plt.show()
+            plt.clf()
+
+   
 def savefig(output_folder, output_name, output_format="png"):
     # check if output folder exists and create it if not
     if not os.path.isdir(output_folder):

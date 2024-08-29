@@ -64,8 +64,13 @@ def init_mote():
 def kpis_all(inputfile):
 
     allstats = {} # indexed by run_id, mote_id
+    golabi={}
+    packet_received_time={}
 
     file_settings = json.loads(inputfile.readline())  # first line contains settings
+    exec_numSlotframesPerRun=file_settings['exec_numSlotframesPerRun']
+    tsch_slotframeLength=file_settings['tsch_slotframeLength']-1
+    slot_duration = file_settings['tsch_slotDuration']
 
     # === gather raw stats
 
@@ -74,6 +79,7 @@ def kpis_all(inputfile):
 
         # shorthands
         run_id = logline['_run_id']
+
         if '_asn' in logline: # TODO this should be enforced in each line
             asn = logline['_asn']
         if '_mote_id' in logline: # TODO this should be enforced in each line
@@ -82,6 +88,9 @@ def kpis_all(inputfile):
         # populate
         if run_id not in allstats:
             allstats[run_id] = {}
+            golabi[run_id] = {}
+            packet_received_time[run_id]={}
+
         if (
                 ('_mote_id' in logline)
                 and
@@ -90,7 +99,8 @@ def kpis_all(inputfile):
                 (mote_id != DAGROOT_ID)
             ):
             allstats[run_id][mote_id] = init_mote()
-
+            golabi[run_id][mote_id]=[]
+            packet_received_time[run_id][mote_id]=[]
         # sync new mote (sync'ed)
         if   logline['_type'] == SimLog.LOG_TSCH_SYNCED['type']:
 
@@ -141,7 +151,6 @@ def kpis_all(inputfile):
                 }
 
             allstats[run_id][mote_id]['upstream_pkts'][appcounter]['tx_asn'] = asn
-
         # packet reception
         elif logline['_type'] == SimLog.LOG_APP_RX['type']:
 
@@ -151,7 +160,7 @@ def kpis_all(inputfile):
             dstIp      = logline['packet']['net']['dstIp']
             hop_limit  = logline['packet']['net']['hop_limit']
             appcounter = logline['packet']['app']['appcounter']
-
+            generationTime =logline['packet']['app']['timestamp']
             # only log upstream packets
             if dstIp != DAGROOT_IP:
                 continue
@@ -160,6 +169,8 @@ def kpis_all(inputfile):
                 d.IPV6_DEFAULT_HOP_LIMIT - hop_limit + 1
             )
             allstats[run_id][mote_id]['upstream_pkts'][appcounter]['rx_asn'] = asn
+            golabi[run_id][mote_id].append({'asn':asn,'tx_asn':generationTime})
+            packet_received_time[run_id][mote_id].append({'asn':asn,'tx_asn':generationTime})
 
         # calculate charge usage
         elif logline['_type'] == SimLog.LOG_RADIO_STATS['type']:
@@ -181,6 +192,48 @@ def kpis_all(inputfile):
             allstats[run_id][mote_id]['charge']     = charge
 
     # === compute advanced motestats
+
+    ###################
+    #data structure for store time stamp for each app = {run_id,mote_id}=['asn','tx_asn']
+    #age data structure {asn,run_id,mote_id}
+    #loop on asn
+    #loop on run id
+    #loop on mote id
+    #
+    #if is_recieved_packet :golabi2{run_id,mote_id}=golabi1{run_id,mote_id}[golabi2{run_id,mote_id}+1]
+    #age = prev_age+1 (asn=1)
+    #check if in current mote we have an updated packet
+    #if we have recieved packet, asn - tx_current_packet
+    aoi_vector={} 
+
+    # for current_asn in range (1,exec_numSlotframesPerRun*tsch_slotframeLength):
+    #     aoi_vector[current_asn]={}
+    #     for (run_id, per_mote_stats) in list(allstats.items()):
+    #         aoi_vector[current_asn][run_id]={}
+    #         for (mote_id, motestats) in list(per_mote_stats.items()):
+    #             aoi_vector[current_asn][run_id][mote_id] = 'N/A'
+    #             recived_packet=None
+    #             for item in golabi[run_id][mote_id]:
+    #                 if(item['asn'] == current_asn):
+    #                     recived_packet=item
+    #                     break
+    #             if recived_packet != None:
+    #                 aoi_vector[current_asn][run_id][mote_id]=current_asn-item['tx_asn']
+    #             if current_asn-1!=0 and aoi_vector[current_asn-1][run_id][mote_id] != 'N/A':
+    #                 aoi_vector[current_asn][run_id][mote_id] = aoi_vector[current_asn-1][run_id][mote_id] +1
+
+    #golabi2[{current_asn,tx_asn,mote_id,run_id}]
+    for (run_id, per_mote_stats) in list(allstats.items()):
+        aoi_vector[run_id]={}
+        for (mote_id, motestats) in list(per_mote_stats.items()):
+            aoi_vector[run_id][mote_id] = []
+            prev_packet=None
+            for item in packet_received_time[run_id][mote_id]:
+                if prev_packet !=None:
+                    aoi_vector[run_id][mote_id].append({'asn':item['asn']*slot_duration,'aoi':(item['asn']-prev_packet['tx_asn'])*slot_duration})
+                aoi_vector[run_id][mote_id].append({'asn':item['asn']*slot_duration,'aoi':(item['asn']-item['tx_asn'])*slot_duration})
+                prev_packet=item  
+            allstats[run_id][mote_id]['aoi']=aoi_vector[run_id][mote_id]
 
     for (run_id, per_mote_stats) in list(allstats.items()):
         for (mote_id, motestats) in list(per_mote_stats.items()):
@@ -207,9 +260,12 @@ def kpis_all(inputfile):
                         if 'rx_asn' in pktstats:
                             motestats['upstream_num_rx']  += 1
                             thislatency = (pktstats['rx_asn']-pktstats['tx_asn'])*file_settings['tsch_slotDuration']
+                            # thisAoI = (pktstats[''])
                             #TODO: Calculate Age(BUT WHERE IS GENERATION TIME OF PKT)
                             motestats['latencies']  += [thislatency]
                             motestats['hops']       += [pktstats['hops']]
+                            ##aoi calculation
+                            #motestats['aoi']        +=
                         else:
                             motestats['upstream_num_lost'] += 1
                     if (motestats['upstream_num_rx'] > 0) and (motestats['upstream_num_tx'] > 0):
@@ -231,7 +287,6 @@ def kpis_all(inputfile):
         us_latencies = []
         current_consumed = []
         lifetimes = []
-        slot_duration = file_settings['tsch_slotDuration']
 
         #-- compute stats
 
