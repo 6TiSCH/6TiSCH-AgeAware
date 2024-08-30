@@ -16,6 +16,7 @@ import json
 import glob
 from collections import OrderedDict
 import numpy as np
+import time
 
 # third party
 import matplotlib
@@ -126,8 +127,10 @@ def plot_aoi(data,subFolder):
             plt.title('Time vs AOI')
             plt.grid(True)
             savefig(subFolder, "aoi_"+str(i)+ ".cdf")
-            plt.show()
-            plt.clf()
+            # plt.show()
+            # plt.clf()
+            plt.close()
+            time.sleep(0.1)  
 
    
 def savefig(output_folder, output_name, output_format="png"):
