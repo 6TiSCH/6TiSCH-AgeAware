@@ -196,9 +196,27 @@ def main():
     
     # cli params
     cliparams = parseCliParams()
+    configFile = cliparams['config']
+
+    # hard-coded config when debugging
+    #configFile = 'C:/Arshia/6TiCSH-AgeAware/bin/config.json'
+    
+    bin_folder = os.getcwd()
+    if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+        bin_folder = os.path.join(bin_folder, '..')
+        if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+            bin_folder = os.path.join(bin_folder, '..')
+            if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+                bin_folder = os.path.join(bin_folder, '..')
+                if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+                    print('ERROR: could not find bin folder:', bin_folder)
+                    return
+                
+    bin_folder = os.path.join(bin_folder, 'bin')
+    configFile = os.path.join(bin_folder, 'config.json')
 
     # sim config
-    simconfig = SimConfig.SimConfig(configfile=cliparams['config'])
+    simconfig = SimConfig.SimConfig(configfile=configFile)
     assert simconfig.version == 0
 
     #=== run simulations
@@ -316,6 +334,14 @@ def main():
     else:
         for c in simconfig.post:
             print('calling "{0}"'.format(c))
+
+            # check folders for debugging
+            current_dir = os.getcwd()
+            process_name = c.split(' ')[1]
+            if os.path.exists(os.path.join(current_dir, process_name)) == False:
+                # if not, check if it exists in the bin folder
+                c = c.replace(process_name, os.path.join(bin_folder, process_name))
+
             rc = subprocess.call(c, shell=True)
             assert rc==0
 

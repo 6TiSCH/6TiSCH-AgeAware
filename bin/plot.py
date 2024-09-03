@@ -39,8 +39,23 @@ KPIS = [
 
 def main(options):
 
+    # hard-coded config when debugging
     #options.inputfolder = '/home/sekiro/6tisch-arshi/6tisch-simulator-a015d94da186/bin/simData'
-    options.inputfolder = 'E:/6TiSCH-AgeAware/bin/simData'
+    #options.inputfolder = 'C:/Arshia/6TiCSH-AgeAware/bin/simData'
+
+    bin_folder = os.getcwd()
+    if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+        bin_folder = os.path.join(bin_folder, '..')
+        if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+            bin_folder = os.path.join(bin_folder, '..')
+            if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+                bin_folder = os.path.join(bin_folder, '..')
+                if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+                    print('ERROR: could not find bin folder:', bin_folder)
+                    return
+    
+    bin_folder = os.path.join(bin_folder, 'bin')
+    options.inputfolder = os.path.join(bin_folder, 'simData')
 
     # init
     data = OrderedDict()
