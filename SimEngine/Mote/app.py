@@ -266,3 +266,65 @@ class AppBurst(AppBase):
                 dstIp         = self.mote.rpl.dodagId,
                 packet_length = self.settings.app_pkLength
             )
+
+class AppRandomBurst(AppBase):
+    """Generate burst traffic to the root 
+    With random number of packets and random time
+    Using these variables on settings:
+    - app_randomBurst_min_numPackets
+    - app_randomBurst_max_numPackets
+    - app_pkPeriod
+    - app_pkPeriodVar
+    - app_randomBurst_max_interval
+    """
+
+    #======================== public ==========================================
+    def __init__(self, mote, **kwargs):
+        super(AppRandomBurst, self).__init__(mote, **kwargs)
+        self.sending_first_packet = True
+
+    def startSendingData(self):
+        if self.sending_first_packet:
+            self._schedule_transmission()
+
+    #======================== private ==========================================
+
+    def _schedule_transmission(self):
+        assert self.settings.app_pkPeriod >= 0
+        if self.settings.app_pkPeriod == 0:
+            return
+
+        if self.sending_first_packet:
+            # compute initial time within the range of [next asn, next asn+pkPeriod]
+            delay = self.settings.tsch_slotDuration + (self.settings.app_pkPeriod * random.random())
+            self.sending_first_packet = False
+        else:
+            # compute random delay
+            assert self.settings.app_pkPeriodVar < 1
+            delay = min(self.settings.app_pkPeriod * (1 + random.uniform(-self.settings.app_pkPeriodVar, self.settings.app_pkPeriodVar)), self.settings.app_randomBurst_max_interval)
+
+        # schedule
+        self.engine.scheduleIn(
+            delay           = delay,
+            cb              = self._send_random_burst_packets,
+            uniqueTag       = (
+                u'AppRandomBurst',
+                u'scheduled_by_{0}'.format(self.mote.id)
+            ),
+            intraSlotOrder  = d.INTRASLOTORDER_ADMINTASKS,
+        )
+
+    def _send_random_burst_packets(self):
+        if self.mote.rpl.dodagId == None:
+            # we're not part of the network now
+            self.sending_first_packet = True
+            return
+
+        num_packets = random.randint(self.settings.app_randomBurst_min_numPackets, self.settings.app_randomBurst_max_numPackets)
+        for _ in range(0, num_packets):
+            self._send_packet(
+                dstIp         = self.mote.rpl.dodagId,
+                packet_length = self.settings.app_pkLength
+            )
+        # schedule the next transmission
+        self._schedule_transmission()

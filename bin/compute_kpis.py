@@ -438,11 +438,24 @@ def kpis_all(inputfile):
 # =========================== main ============================================
 
 def main():
-    # inputfolder = '/home/sekiro/6tisch-arshi/6tisch-simulator-a015d94da186/bin/simData'
-    # inputfolder = 'C:/Arshia/6TiCSH-AgeAware/bin/simData'
-    inputfolder = 'E:/6TiSCH-AgeAware/bin/simData'
+    inputfolder = os.listdir('simData')
 
-    # inputfolder = os.listdir('simData')
+    # hard-coded config when debugging
+    #inputfolder = 'C:/Arshia/6TiCSH-AgeAware/bin/simData'
+
+    bin_folder = os.getcwd()
+    if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+        bin_folder = os.path.join(bin_folder, '..')
+        if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+            bin_folder = os.path.join(bin_folder, '..')
+            if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+                bin_folder = os.path.join(bin_folder, '..')
+                if os.path.exists(os.path.join(bin_folder, 'bin')) == False:
+                    print('ERROR: could not find bin folder:', bin_folder)
+                    return
+
+    bin_folder = os.path.join(bin_folder, 'bin')
+    inputfolder = os.path.join(bin_folder, 'simData')
 
     # FIXME: This logic could be a helper method for other scripts
     # Identify simData having the latest results. That directory should have

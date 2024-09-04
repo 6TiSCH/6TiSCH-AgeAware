@@ -9,18 +9,21 @@
             "exec_numMotes":                               [4]
         },
         "regular": {
-            "exec_numSlotframesPerRun":                    1000,
+            "exec_numSlotframesPerRun":                    3000,
             "exec_minutesPerRun":                          null,
             "exec_randomSeed":                             "random",
 
             "secjoin_enabled":                             true,
 
-            "app":                                         "AppPeriodic",
+            "app":                                         "AppRandomBurst",
             "app_pkPeriod":                                60,
             "app_pkPeriodVar":                             0.05,
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
+            "app_randomBurst_min_numPackets":              1,
+            "app_randomBurst_max_numPackets":              5,
+            "app_randomBurst_max_interval":                60,
 
             "rpl_of":                                      "OF0",
             "rpl_daoPeriod":                               60,
@@ -42,6 +45,7 @@
             "tsch_keep_alive_interval":                    10,
             "tsch_tx_queue_size":                          10,
             "tsch_max_tx_retries":                         5,
+            "tx_tsch_datastructure":                      "Stack",
 
 
             "radio_stats_log_period_s":                    60,
@@ -61,7 +65,7 @@
         }
     },
     "logging":                                             "all",
-    "log_directory_name":                                  "hostname",
+    "log_directory_name":                                  "startTime",
     "post": [
         "python compute_kpis.py",
         "python plot.py"

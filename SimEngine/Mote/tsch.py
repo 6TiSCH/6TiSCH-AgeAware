@@ -43,6 +43,8 @@ class Tsch(object):
 
         # local variables
         self.slotframes       = {}
+
+        #TODO: convert to stack
         self.txQueue          = []
         if self.settings.tsch_tx_queue_size >= 0:
             self.txQueueSize  = self.settings.tsch_tx_queue_size
@@ -363,6 +365,10 @@ class Tsch(object):
         assert u'srcMac' in packet[u'mac']
         assert u'dstMac' in packet[u'mac']
 
+        isStack = False
+        if self.settings.tx_tsch_datastructure == 'Stack':
+            isStack = True
+
         goOn = True
 
         # check there is space in txQueue
@@ -433,16 +439,31 @@ class Tsch(object):
                         packet = packet_to_drop,
                         reason  = SimEngine.SimLog.DROPREASON_TXQUEUE_FULL
                     )
-                index = len(self.txQueue)
-                for i, _ in enumerate(self.txQueue):
-                    if self.txQueue[i][u'mac'][u'priority'] is False:
-                        index = i
-                        break
-                self.txQueue.insert(index, packet)
+
+                index2 = len(self.txQueue)
+                if isStack == False:
+                    for i, _ in enumerate(self.txQueue):
+                        if self.txQueue[i][u'mac'][u'priority'] is False:
+                            index2 = i
+                            break
+                    self.txQueue.insert(index2, packet)
+                else:
+                    # arshi: always put priority packets at head of stack
+                    self.txQueue.insert(0, packet)
             else:
                 packet[u'mac'][u'priority'] = False
-                # add to txQueue
-                self.txQueue    += [packet]
+                if isStack == False:
+                    packet[u'mac'][u'priority'] = False
+                    # add to txQueue
+                    self.txQueue    += [packet]
+                else:
+                    # arshi: put non-priority after priority packets in stack
+                    index2 = 0
+                    for i, _ in enumerate(self.txQueue):
+                        if self.txQueue[i][u'mac'][u'priority'] is False:
+                            index2 = i
+                            break
+                    self.txQueue.insert(index2, packet)
 
         if (
                 goOn
