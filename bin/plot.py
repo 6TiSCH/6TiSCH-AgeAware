@@ -22,6 +22,7 @@ import time
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
 
 # ============================ defines ========================================
 
@@ -142,12 +143,66 @@ def plot_aoi(data,subFolder):
             plt.title('Time vs AOI')
             plt.grid(True)
             savefig(subFolder, "aoi_"+str(i)+ ".cdf")
-            # plt.show()
-            # plt.clf()
             plt.close()
-            time.sleep(0.1)  
 
-   
+            plot_moving_average(asn_values, aoi_values,subFolder=subFolder,index=i)
+            
+            plot_peaks(asn_values, aoi_values,subFolder=subFolder,index=i)
+
+            time.sleep(0.2)  
+
+def plot_moving_average(asn_values, aoi_values, window_size=5, subFolder="", index=0):
+    if len(aoi_values) == 0:
+        print("Warning: AOI values are empty, skipping moving average plot.")
+        return
+    
+    moving_averages = np.convolve(aoi_values, np.ones(window_size)/window_size, mode='valid')
+    
+    if len(moving_averages) == 0:
+        print("Warning: Moving averages result is empty, skipping plot.")
+        return
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(asn_values[:len(moving_averages)], moving_averages, marker='o', linestyle='-', color='green')
+    plt.xlabel('Time')
+    plt.ylabel('Moving Average of AOI')
+    plt.title('Moving Average (window size={}) of AOI'.format(window_size))
+    plt.grid(True)
+    
+    savefig(subFolder, "moving_average_aoi"+str(index)+ ".cdf")
+
+    plt.close()
+
+def plot_peaks(asn_values, aoi_values, window_size=5, subFolder="", index=0):
+    if len(aoi_values) == 0:
+        print("Warning: AOI values are empty, skipping peak plot.")
+        return
+    
+    moving_averages = np.convolve(aoi_values, np.ones(window_size)/window_size, mode='valid')
+    
+    if len(moving_averages) == 0:
+        print("Warning: Moving averages result is empty, skipping plot.")
+        return
+    
+    peaks, _ = find_peaks(moving_averages)
+    
+    if len(peaks) == 0:
+        print("Warning: No peaks found, skipping peak plot.")
+        return
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(asn_values[peaks], moving_averages[peaks], marker='o', linestyle='-', color='red', label='Peaks')
+    
+    plt.xlabel('Time')
+    plt.ylabel('Peaks of Moving Average of AOI')
+    plt.title('Peaks of Moving Average (window size={}) of AOI'.format(window_size))
+    plt.grid(True)
+    
+    savefig(subFolder, "peaks_moving_average_aoi_" + str(index) + ".cdf")
+
+    plt.close()
+
+
 def savefig(output_folder, output_name, output_format="png"):
     # check if output folder exists and create it if not
     if not os.path.isdir(output_folder):
