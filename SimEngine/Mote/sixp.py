@@ -711,6 +711,8 @@ class SixPTransaction(object):
                 (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_REQUEST)
                 or
                 (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION)
+                or
+                (packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_AOI_FEEDBACK)
             ):
             initiator = packet[u'mac'][u'srcMac']
             responder = packet[u'mac'][u'dstMac']

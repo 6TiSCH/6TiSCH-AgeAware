@@ -206,19 +206,19 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # assert that pkt receiver is not root
         assert not self.mote.dagRoot
 
-        action = pkt[u'app'][u'action']
+        action = pkt[u'app'][u'aoiAction']
 
         #TODO:LOG adopt the action
         self.log(
             SimEngine.SimLog.LOG_ASF_ACTION,
             {
                 u'_mote_id'    : self.mote.id,
-                u'neighbor'    : pkt[u'net'][u'srcIp'],
+                u'neighbor'    : pkt[u'mac'][u'srcMac'],
                 u'action'      : action
             }
         )
 
-        self._adapt_aoi_traffic(pkt[u'net'][u'srcIp'], action)
+        self._adapt_aoi_traffic(pkt[u'mac'][u'srcMac'], action)
 
     # store received pkts on for dodag root in a list
     def indication_packet_for_root_receieved(self, received_packet):
@@ -229,41 +229,41 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         aoi = self.engine.getAsn() - received_packet[u'app'][u'timestamp']
 
         # check that the pkt is not already in the list
-        if received_packet[u'net'][u'srcIp'] not in self.pkt_list:
-            self.pkt_list[received_packet[u'net'][u'srcIp']] = []
+        if received_packet[u'mac'][u'srcMac'] not in self.pkt_list:
+            self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
 
-        self.pkt_list[received_packet[u'net']['srcIp']].append(aoi)
+        self.pkt_list[received_packet[u'mac']['srcMac']].append(aoi)
 
         # check if time to send feedback to the mote
-        if len(self.pkt_list[received_packet[u'net'][u'srcIp']]) == self._max_recevied_packets_in_root():
+        if len(self.pkt_list[received_packet[u'mac'][u'srcMac']]) == self._max_recevied_packets_in_root():
             aoi_sum = 0
-            for aoi in self.pkt_list[received_packet[u'net'][u'srcIp']]:
+            for aoi in self.pkt_list[received_packet[u'mac'][u'srcMac']]:
                 aoi_sum += aoi
             
-            aoi_avg = aoi_sum / len(self.pkt_list[received_packet[u'net'][u'srcIp']])
+            aoi_avg = aoi_sum / len(self.pkt_list[received_packet[u'mac'][u'srcMac']])
 
             # get min and max thresholds
-            min, max = self._get_aoi_min_max_thresholds(received_packet[u'net'][u'srcIp'])
+            min, max = self._get_aoi_min_max_thresholds(received_packet[u'mac'][u'srcMac'])
 
             #TODO:LOG the aoi_avg
             self.log(
                 SimEngine.SimLog.LOG_ASF_AVERAGE,
                 {
                     u'_mote_id'    : self.mote.id,
-                    u'neighbor'    : received_packet[u'net'][u'srcIp'],
-                    u'value'       : aoi_avg
+                    u'average'     : aoi_avg,
+                    u'neighbor'    : received_packet[u'mac'][u'srcMac'],
                 }
             )
 
             # check if the average age of information is within the thresholds
             # if not, send feedback to the mote
             if aoi_avg < min :
-                self._send_feedback(received_packet[u'net'][u'srcIp'], "add")
+                self._send_feedback(received_packet[u'mac'][u'srcMac'], "delete")
             elif aoi_avg > max:
-                self._send_feedback(received_packet[u'net'][u'srcIp'], "delete")
+                self._send_feedback(received_packet[u'mac'][u'srcMac'], "add")
 
             # clear the list
-            self.pkt_list[received_packet[u'net'][u'srcIp']] = []
+            self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
 
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass
@@ -569,12 +569,12 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     # ======================= private ==========================================
 
     def _get_aoi_min_max_thresholds(self, mac_addr):
-        min = 0.25
-        max = 0.75
+        min = d.ASF_LIM_AVERAGE_AOI_LOW
+        max = d.ASF_LIM_AVERAGE_AOI_HIGH
         return min, max
     
     def _max_recevied_packets_in_root(self):
-        return 10
+        return d.ASF_MAX_NUMCELLS
 
     def _send_feedback(self, mac_addr, action):
         # send a sixp packet to the mote
