@@ -47,6 +47,24 @@ class SixP(object):
 
     # ======================= public ==========================================
 
+    # send aoi feedback from root to mote
+    def send_aoi_feedback(
+            self,
+            dstMac,
+            return_code,
+            aoiAction
+        ):
+
+        packet = self._create_packet(
+            dstMac   = dstMac,
+            msgType  = d.SIXP_MSG_TYPE_AOI_FEEDBACK,
+            code     = return_code,
+            aoiAction= aoiAction,
+        )
+
+        # enqueue
+        self._tsch_enqueue(packet)
+
     def clear_transaction_table(self):
         for transaction in [self.transaction_table[key]
                             for key in self.transaction_table]:
@@ -69,6 +87,8 @@ class SixP(object):
             self._recv_response(packet)
         elif packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_CONFIRMATION:
             self._recv_confirmation(packet)
+        elif packet[u'app'][u'msgType'] == d.SIXP_MSG_TYPE_AOI_FEEDBACK:
+            self._recv_aoi_feedback(packet)
         else:
             raise Exception()
 
@@ -327,6 +347,10 @@ class SixP(object):
         )
         self.mote.tsch.enqueue(packet, priority=True)
 
+    def _recv_aoi_feedback(self, packet):
+        # pass this to the scheduling function
+        self.mote.sf.indication_receive_AOIFeedback(packet)
+
     def _recv_request(self, request):
         # identify a transaction instance to proceed
         transaction = self._find_transaction(request)
@@ -471,6 +495,7 @@ class SixP(object):
             candidateCellList  = None,
             offset             = None,
             maxNumCells        = None,
+            aoiAction          = None,
             payload            = None
         ):
         packet = {
@@ -557,7 +582,8 @@ class SixP(object):
                 pass
             elif command == d.SIXP_CMD_SIGNAL:
                 packet[u'app'][u'payload']  = payload
-
+        elif msgType == d.SIXP_MSG_TYPE_AOI_FEEDBACK:
+            packet[u'app'][u'aoiAction'] = aoiAction
         else:
             # shouldn't come here
             raise Exception()

@@ -708,6 +708,7 @@ class Tsch(object):
         # notify upper layers
         if active_cell:
             assert active_cell.is_tx_on()
+            # Go for trafic adoption if needed
             self.mote.sf.indication_tx_cell_elapsed(
                 cell        = active_cell,
                 sent_packet = self.pktToSend
@@ -848,10 +849,19 @@ class Tsch(object):
         # notify upper layers
         if active_cell:
             assert active_cell.is_rx_on()
+            # Go for trafic adoption if needed
             self.mote.sf.indication_rx_cell_elapsed(
                 cell            = active_cell,
                 received_packet = packet
             )
+
+        if active_cell:
+            assert active_cell.is_rx_on()
+            # store age of the received packet in root
+            if self.mote.dagRoot:
+                self.mote.sf.indication_packet_for_root_receieved(
+                    received_packet = packet
+                )
 
         return isACKed
 
