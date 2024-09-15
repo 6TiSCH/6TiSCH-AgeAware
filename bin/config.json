@@ -6,7 +6,7 @@
     },
     "settings": {
         "combination": {
-            "exec_numMotes":                               [4]
+            "exec_numMotes":                               [5]
         },
         "regular": {
             "exec_numSlotframesPerRun":                    3000,
@@ -21,8 +21,8 @@
             "app_pkLength":                                90,
             "app_burstTimestamp":                          null,
             "app_burstNumPackets":                         0,
-            "app_randomBurst_min_numPackets":              1,
-            "app_randomBurst_max_numPackets":              5,
+            "app_randomBurst_min_numPackets":              5,
+            "app_randomBurst_max_numPackets":              10,
             "app_randomBurst_max_interval":                60,
 
             "rpl_of":                                      "OF0",
@@ -36,6 +36,7 @@
             "tsch_max_payload_len":                        90,
 
             "sf_class":                                    "MSF",
+            "feedback":                                    "AMSF",
 
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,

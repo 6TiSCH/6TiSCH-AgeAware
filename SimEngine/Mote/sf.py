@@ -299,9 +299,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     )
                     self.tx_cell_utilization = tx_cell_utilization
                 #TODO: specify new config to work with MSF
-                if(True):
-                    pass
-                    #self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
+                if(self.settings.feedback == 'AMSF' or self.settings.feedback == 'NoFeedback'):
+                    self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
                 self._reset_cell_counters(self.TX_CELL_OPT)
 
     def indication_rx_cell_elapsed(self, cell, received_packet):
@@ -613,9 +612,8 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 )
                 self.rx_cell_utilization = rx_cell_utilization
             #TODO: specify new config to work with MSF
-            if (True):
-                pass
-                #self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
+            if(self.settings.feedback == 'AMSF' or self.settings.feedback == 'NoFeedback'):
+                self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
             self._reset_cell_counters(self.RX_CELL_OPT)
 
     def _update_cell_counters(self, cell_opt, used):
