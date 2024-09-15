@@ -36,7 +36,7 @@
             "tsch_max_payload_len":                        90,
 
             "sf_class":                                    "MSF",
-            "feedback":                                    "AMSF",
+            "feedback":                                    "NoFeedback",
 
             "tsch_slotDuration":                           0.010,
             "tsch_slotframeLength":                        101,
@@ -46,7 +46,7 @@
             "tsch_keep_alive_interval":                    10,
             "tsch_tx_queue_size":                          10,
             "tsch_max_tx_retries":                         5,
-            "tx_tsch_datastructure":                      "Stack",
+            "tx_tsch_datastructure":                      "Queue",
 
 
             "radio_stats_log_period_s":                    60,
