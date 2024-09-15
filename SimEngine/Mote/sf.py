@@ -138,6 +138,10 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     RX_CELL_OPT   = [d.CELLOPTION_RX]
     NUM_INITIAL_NEGOTIATED_TX_CELLS = 1
     NUM_INITIAL_NEGOTIATED_RX_CELLS = 0
+    
+    # root receives packets from motes and stores them in a list
+    # [IP] = [ { age_of_pkt } ]
+    pkt_list = {}
 
     def __init__(self, mote):
         # initialize parent class
@@ -147,9 +151,11 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         self.num_tx_cells_elapsed = 0
         self.num_tx_cells_used    = 0
         self.tx_cell_utilization  = 0
+
         self.num_rx_cells_elapsed = 0
         self.num_rx_cells_used    = 0
         self.rx_cell_utilization  = 0
+
         self.locked_slots         = set([]) # slots in on-going ADD transactions
         self.retry_count          = {}      # indexed by MAC address
 
@@ -195,6 +201,70 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     # === indications from other layers
 
+    # adaption of cells to the traffic
+    def indication_receive_AOIFeedback(self, pkt):
+        # assert that pkt receiver is not root
+        assert not self.mote.dagRoot
+
+        action = pkt[u'app'][u'aoiAction']
+
+        #TODO:LOG adopt the action
+        self.log(
+            SimEngine.SimLog.LOG_ASF_ACTION,
+            {
+                u'_mote_id'    : self.mote.id,
+                u'neighbor'    : pkt[u'mac'][u'srcMac'],
+                u'action'      : action
+            }
+        )
+
+        self._adapt_aoi_traffic(pkt[u'mac'][u'srcMac'], action)
+
+    # store received pkts on for dodag root in a list
+    def indication_packet_for_root_receieved(self, received_packet):
+        # assert that pkt receiver is root
+        assert self.mote.dagRoot
+
+        # store the age of pkt in the list
+        aoi = self.engine.getAsn() - received_packet[u'app'][u'timestamp']
+
+        # check that the pkt is not already in the list
+        if received_packet[u'mac'][u'srcMac'] not in self.pkt_list:
+            self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
+
+        self.pkt_list[received_packet[u'mac']['srcMac']].append(aoi)
+
+        # check if time to send feedback to the mote
+        if len(self.pkt_list[received_packet[u'mac'][u'srcMac']]) == self._max_recevied_packets_in_root():
+            aoi_sum = 0
+            for aoi in self.pkt_list[received_packet[u'mac'][u'srcMac']]:
+                aoi_sum += aoi
+            
+            aoi_avg = aoi_sum / len(self.pkt_list[received_packet[u'mac'][u'srcMac']])
+
+            # get min and max thresholds
+            min, max = self._get_aoi_min_max_thresholds(received_packet[u'mac'][u'srcMac'])
+
+            #TODO:LOG the aoi_avg
+            self.log(
+                SimEngine.SimLog.LOG_ASF_AVERAGE,
+                {
+                    u'_mote_id'    : self.mote.id,
+                    u'average'     : aoi_avg,
+                    u'neighbor'    : received_packet[u'mac'][u'srcMac'],
+                }
+            )
+
+            # check if the average age of information is within the thresholds
+            # if not, send feedback to the mote
+            if aoi_avg < min :
+                self._send_feedback(received_packet[u'mac'][u'srcMac'], "delete")
+            elif aoi_avg > max:
+                self._send_feedback(received_packet[u'mac'][u'srcMac'], "add")
+
+            # clear the list
+            self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
+
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass
 
@@ -209,6 +279,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             ):
             self._update_cell_counters(self.TX_CELL_OPT, bool(sent_packet))
             # adapt number of cells if necessary
+            #TODO: Introduce new threshold based on AOI
             if d.MSF_MAX_NUMCELLS <= self.num_tx_cells_elapsed:
                 tx_cell_utilization = (
                     self.num_tx_cells_used /
@@ -227,7 +298,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                         }
                     )
                     self.tx_cell_utilization = tx_cell_utilization
-                self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
+                #TODO: specify new config to work with MSF
+                if(self.settings.feedback == 'AMSF' or self.settings.feedback == 'NoFeedback'):
+                    self._adapt_to_traffic(preferred_parent, self.TX_CELL_OPT)
                 self._reset_cell_counters(self.TX_CELL_OPT)
 
     def indication_rx_cell_elapsed(self, cell, received_packet):
@@ -494,6 +567,18 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
     # ======================= private ==========================================
 
+    def _get_aoi_min_max_thresholds(self, mac_addr):
+        min = d.ASF_LIM_AVERAGE_AOI_LOW
+        max = d.ASF_LIM_AVERAGE_AOI_HIGH
+        return min, max
+    
+    def _max_recevied_packets_in_root(self):
+        return d.ASF_MAX_NUMCELLS
+
+    def _send_feedback(self, mac_addr, action):
+        # send a sixp packet to the mote
+        self.mote.sixp.send_aoi_feedback(mac_addr, d.SIXP_RC_SUCCESS, action)
+
     def _reset_cell_counters(self, cell_opt):
         if cell_opt == self.TX_CELL_OPT:
             self.num_tx_cells_elapsed = 0
@@ -507,6 +592,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         preferred_parent = self.mote.rpl.getPreferredParent()
         self._update_cell_counters(self.RX_CELL_OPT, used_by_parent)
         # adapt number of cells if necessary
+        #TODO: Introduce new threshold based on AOI
         rx_cell_utilization = (
             self.num_rx_cells_used /
             float(self.num_rx_cells_elapsed)
@@ -525,7 +611,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                     }
                 )
                 self.rx_cell_utilization = rx_cell_utilization
-            self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
+            #TODO: specify new config to work with MSF
+            if(self.settings.feedback == 'AMSF' or self.settings.feedback == 'NoFeedback'):
+                self._adapt_to_traffic(preferred_parent, self.RX_CELL_OPT)
             self._reset_cell_counters(self.RX_CELL_OPT)
 
     def _update_cell_counters(self, cell_opt, used):
@@ -539,6 +627,36 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             if used:
                 self.num_rx_cells_used += 1
 
+    def _adapt_aoi_traffic(self, neighbor, action):
+        # reset retry counter
+        #TODO: what the f... is this?
+        assert neighbor in self.retry_count
+        if self.retry_count[neighbor] != -1:
+            # we're in the middle of a 6P transaction; try later
+            return
+        
+        if action == "add":
+            # add one TX cell
+            self.retry_count[neighbor] = 0
+            self._request_adding_cells(
+                neighbor     = neighbor,
+                num_tx_cells = 1
+            )
+        elif action == "delete":
+            tx_cells = [cell for cell in self.mote.tsch.get_cells(
+                    neighbor,
+                    self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS
+                ) if cell.options == [d.CELLOPTION_TX]]
+            # delete one *TX* cell but we need to keep one dedicated
+            # cell to our parent at least
+            if len(tx_cells) > 1:
+                self.retry_count[neighbor] = 0
+                self._request_deleting_cells(
+                    neighbor     = neighbor,
+                    num_cells    = 1,
+                    cell_options = self.TX_CELL_OPT
+                )
+        
     def _adapt_to_traffic(self, neighbor, cell_opt):
         # reset retry counter
         assert neighbor in self.retry_count

@@ -197,6 +197,8 @@ class Sixlowpan(object):
                 elif packet[u'type'] == d.PKT_TYPE_DIS:
                     self.mote.rpl.action_receiveDIS(packet)
                 elif packet[u'type'] == d.PKT_TYPE_DATA:
+                    # Handle pkt age and calculate the AOI
+                    # Destination of All data pkts are the root node
                     self.mote.app.recvPacket(packet)
 
             else:
