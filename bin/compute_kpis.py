@@ -313,6 +313,18 @@ def kpis_all(inputfile):
 
             average_aoi = (asn_num/asn_sum) * slot_duration
 
+            # variance of aoi
+            variance_aoi = 0
+            for index, event in enumerate(aoi_stats[run_id][0]):
+                variance_aoi += (event['aoi'] - average_aoi) ** 2
+
+                if index != len(aoi_stats[run_id][0]) - 1:
+                    for i in range(event['asn'], aoi_stats[run_id][0][index+1]['asn']):
+                        variance_aoi += (current_aoi - average_aoi) ** 2
+
+            variance_aoi = variance_aoi / (asn_sum - 1)
+            variance_aoi = variance_aoi * slot_duration
+
         #-- save stats
 
         allstats[run_id]['global-stats'] = {
@@ -321,6 +333,11 @@ def kpis_all(inputfile):
                     'name': 'Average Age of Information',
                     'unit': 's',
                     'value': average_aoi
+                },
+                {
+                    'name': 'Variance of Age of Information',
+                    'unit': 's',
+                    'value': variance_aoi
                 }
             ],
             'e2e-upstream-delivery': [

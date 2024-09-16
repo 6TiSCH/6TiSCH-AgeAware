@@ -127,58 +127,65 @@ def plot_box(data, key, subfolder):
     plt.clf()
 
 def plot_aoi(data,subFolder):
-    
     for k, values in data.items():
-        for i in range (0 ,len(values)):
-            asn_values = [int(item["asn"]) for item in values[i]]
-            aoi_values = [int(item["aoi"]) for item in values[i]]
+        asn_values = [int(item["asn"]) for item in values[0]]
+        aoi_values = [int(item["aoi"]) for item in values[0]]
 
-            # Plotting the data
-            plt.figure(figsize=(10, 6))
-            plt.plot(asn_values, aoi_values, marker='o', linestyle='-', color='blue')
+        # Plotting the data
+        plt.figure(figsize=(10, 6))
+        plt.plot(asn_values, aoi_values, marker='o', linestyle='-', color='blue')
 
-            # Adding labels and title
-            plt.xlabel('Time')
-            plt.ylabel('AOI')
-            plt.title('Time vs AOI')
-            plt.grid(True)
-            savefig(subFolder, "aoi_"+str(i)+ ".cdf")
-            plt.close()
+        # Adding labels and title
+        plt.xlabel('Time')
+        plt.ylabel('AOI')
+        plt.title('Time vs AOI')
+        plt.grid(True)
+        savefig(subFolder, "average_aoi")
+        plt.close()
 
-            plot_moving_average(asn_values, aoi_values,subFolder=subFolder,index=i)
-            
-            plot_peaks(asn_values, aoi_values,subFolder=subFolder,index=i)
+        plot_moving_average(asn_values, aoi_values,subFolder=subFolder,index=0)
+        
+        plot_peaks_moving_average(asn_values, aoi_values,subFolder=subFolder,index=0)
 
-            time.sleep(0.2)  
+        # Plotting the peak data only
+        plot_peak_data(asn_values, aoi_values,subFolder=subFolder,index=0)
 
-def plot_moving_average(asn_values, aoi_values, window_size=5, subFolder="", index=0):
+        # plotting the variance of the data
+        # I want to see how data is near the min and distribution
+        plot_variance_near_min(asn_values, aoi_values,subFolder=subFolder,index=0)
+
+        time.sleep(0.2)  
+
+def plot_moving_average(asn_values, aoi_values, subFolder="", index=0):
     if len(aoi_values) == 0:
         print("Warning: AOI values are empty, skipping moving average plot.")
         return
     
-    moving_averages = np.convolve(aoi_values, np.ones(window_size)/window_size, mode='valid')
+    # Calculate the cumulative moving average
+    moving_averages = np.cumsum(aoi_values) / np.arange(1, len(aoi_values) + 1)
     
     if len(moving_averages) == 0:
         print("Warning: Moving averages result is empty, skipping plot.")
         return
     
     plt.figure(figsize=(10, 6))
-    plt.plot(asn_values[:len(moving_averages)], moving_averages, marker='o', linestyle='-', color='green')
+    plt.plot(asn_values, moving_averages, marker='o', linestyle='-', color='green')
     plt.xlabel('Time')
-    plt.ylabel('Moving Average of AOI')
-    plt.title('Moving Average (window size={}) of AOI'.format(window_size))
+    plt.ylabel('Cumulative Moving Average of AOI')
+    plt.title('Cumulative Moving Average of AOI')
     plt.grid(True)
     
-    savefig(subFolder, "moving_average_aoi"+str(index)+ ".cdf")
+    savefig(subFolder, "cumulative_moving_average_aoi")
 
     plt.close()
 
-def plot_peaks(asn_values, aoi_values, window_size=5, subFolder="", index=0):
+def plot_peaks_moving_average(asn_values, aoi_values, subFolder="", index=0):
     if len(aoi_values) == 0:
         print("Warning: AOI values are empty, skipping peak plot.")
         return
     
-    moving_averages = np.convolve(aoi_values, np.ones(window_size)/window_size, mode='valid')
+    # Calculate the cumulative moving average
+    moving_averages = np.cumsum(aoi_values) / np.arange(1, len(aoi_values) + 1)
     
     if len(moving_averages) == 0:
         print("Warning: Moving averages result is empty, skipping plot.")
@@ -191,17 +198,72 @@ def plot_peaks(asn_values, aoi_values, window_size=5, subFolder="", index=0):
         return
     
     plt.figure(figsize=(10, 6))
-    plt.plot(asn_values[peaks], moving_averages[peaks], marker='o', linestyle='-', color='red', label='Peaks')
+    plt.plot(asn_values, moving_averages, label='Cumulative Moving Average', color='green')
+    plt.plot(np.array(asn_values)[peaks], moving_averages[peaks], marker='o', linestyle='None', color='red', label='Peaks')
     
     plt.xlabel('Time')
-    plt.ylabel('Peaks of Moving Average of AOI')
-    plt.title('Peaks of Moving Average (window size={}) of AOI'.format(window_size))
+    plt.ylabel('Cumulative Moving Average of AOI')
+    plt.title('Peaks of Cumulative Moving Average of AOI')
+    plt.legend()
     plt.grid(True)
     
-    savefig(subFolder, "peaks_moving_average_aoi_" + str(index) + ".cdf")
+    savefig(subFolder, "peaks_cumulative_moving_average_aoi_" + str(index) + ".cdf")
 
     plt.close()
 
+def plot_peak_data(asn_values, aoi_values, subFolder="", index=0):
+    if len(aoi_values) == 0:
+        print("Warning: AOI values are empty, skipping peak data plot.")
+        return
+    
+    # Calculate the cumulative moving average
+    moving_averages = np.cumsum(aoi_values) / np.arange(1, len(aoi_values) + 1)
+    
+    if len(moving_averages) == 0:
+        print("Warning: Moving averages result is empty, skipping plot.")
+        return
+    
+    peaks, _ = find_peaks(moving_averages)
+    
+    if len(peaks) == 0:
+        print("Warning: No peaks found, skipping peak data plot.")
+        return
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(asn_values, aoi_values, label='AOI', color='blue')
+    plt.plot(np.array(asn_values)[peaks], np.array(aoi_values)[peaks], marker='o', linestyle='None', color='red', label='Peaks')
+    
+    plt.xlabel('Time')
+    plt.ylabel('AOI')
+    plt.title('AOI Peaks')
+    plt.legend()
+    plt.grid(True)
+    
+    savefig(subFolder, "peak_data_aoi")
+
+    plt.close()
+
+def plot_variance_near_min(asn_values, aoi_values, subFolder="", index=0):
+    if len(aoi_values) == 0:
+        print("Warning: AOI values are empty, skipping variance plot.")
+        return
+
+    # Calculate the global minimum
+    global_min = np.min(aoi_values)
+
+    # Calculate the variance of AOI values compared to the global minimum
+    variances = [(value - global_min) ** 2 for value in aoi_values]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(asn_values, variances, marker='o', linestyle='-', color='purple')
+    plt.xlabel('Time')
+    plt.ylabel('Variance from Global Minimum AOI')
+    plt.title('Variance from Global Minimum AOI over Time')
+    plt.grid(True)
+
+    savefig(subFolder, "variance_from_global_min_aoi_" + str(index))
+
+    plt.close()
 
 def savefig(output_folder, output_name, output_format="png"):
     # check if output folder exists and create it if not
