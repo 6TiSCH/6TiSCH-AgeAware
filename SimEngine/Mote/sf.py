@@ -258,9 +258,9 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # check if the average age of information is within the thresholds
             # if not, send feedback to the mote
             if aoi_avg < min :
-                self._send_feedback(received_packet[u'mac'][u'srcMac'], "delete")
+                self._send_feedback(received_packet[u'mac'][u'srcMac'], d.SIXP_FEEDBACK_ACTION_DELETE)
             elif aoi_avg > max:
-                self._send_feedback(received_packet[u'mac'][u'srcMac'], "add")
+                self._send_feedback(received_packet[u'mac'][u'srcMac'], d.SIXP_FEEDBACK_ACTION_ADD)
 
             # clear the list
             self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
@@ -635,14 +635,14 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             # we're in the middle of a 6P transaction; try later
             return
         
-        if action == "add":
+        if action == d.SIXP_FEEDBACK_ACTION_ADD:
             # add one TX cell
             self.retry_count[neighbor] = 0
             self._request_adding_cells(
                 neighbor     = neighbor,
                 num_tx_cells = 1
             )
-        elif action == "delete":
+        elif action == d.SIXP_FEEDBACK_ACTION_DELETE:
             tx_cells = [cell for cell in self.mote.tsch.get_cells(
                     neighbor,
                     self.SLOTFRAME_HANDLE_NEGOTIATED_CELLS

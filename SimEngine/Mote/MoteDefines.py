@@ -79,6 +79,9 @@ SIXP_CALLBACK_EVENT_TIMEOUT                 = u'timeout'
 SIXP_CALLBACK_EVENT_FAILURE                 = u'failure'
 SIXP_CALLBACK_EVENT_ABORTED                 = u'aborted'
 
+SIXP_FEEDBACK_ACTION_ADD                    = u'add'
+SIXP_FEEDBACK_ACTION_DELETE                 = u'delete'
+
 # === sf
 MSF_MAX_NUMCELLS                            = 100
 MSF_LIM_NUMCELLSUSED_HIGH                   = 0.75 # in [0-1]

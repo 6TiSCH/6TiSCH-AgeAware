@@ -68,6 +68,13 @@ def main(options):
     )
     subfolder = max(subfolders, key=os.path.getmtime)
 
+    # read the config.json file to get settings values
+    with open(os.path.join(subfolder, 'config.json'), 'r') as f:
+        settings = json.load(f)
+
+    # # read the tsch_slotDuration from the settings
+    # tsch_slotDuration = 
+
     for key in options.kpis:
         # load data
         for file_path in sorted(glob.glob(os.path.join(subfolder, '*.kpi'))):
@@ -91,7 +98,7 @@ def main(options):
             if key in ['lifetime_AA_years', 'latencies']:
                 plot_cdf(data, key, subfolder)
             elif key == 'aoi':
-                plot_aoi(data,subfolder)
+                plot_aoi(data, settings, subfolder)
             else:
                 plot_box(data, key, subfolder)
 
@@ -126,7 +133,7 @@ def plot_box(data, key, subfolder):
     savefig(subfolder, key)
     plt.clf()
 
-def plot_aoi(data,subFolder):
+def plot_aoi(data, settings, subFolder):
     for k, values in data.items():
         asn_values = [int(item["asn"]) for item in values[0]]
         aoi_values = [int(item["aoi"]) for item in values[0]]
@@ -143,12 +150,13 @@ def plot_aoi(data,subFolder):
         savefig(subFolder, "average_aoi")
         plt.close()
 
-        plot_moving_average(asn_values, aoi_values,subFolder=subFolder,index=0)
-        
-        plot_peaks_moving_average(asn_values, aoi_values,subFolder=subFolder,index=0)
+        slot_duration = settings['settings']['regular']['tsch_slotDuration']
 
+        plot_moving_average(asn_values, aoi_values, slot_duration, subFolder=subFolder,index=0)
+        
         # Plotting the peak data only
         plot_peak_data(asn_values, aoi_values,subFolder=subFolder,index=0)
+        plot_peaks_moving_average(asn_values, aoi_values,subFolder=subFolder,index=0)
 
         # plotting the variance of the data
         # I want to see how data is near the min and distribution
@@ -156,18 +164,32 @@ def plot_aoi(data,subFolder):
 
         time.sleep(0.2)  
 
-def plot_moving_average(asn_values, aoi_values, subFolder="", index=0):
+def plot_moving_average(asn_values, aoi_values, slot_duration, subFolder="", index=0):
     if len(aoi_values) == 0:
         print("Warning: AOI values are empty, skipping moving average plot.")
         return
     
-    # Calculate the cumulative moving average
-    moving_averages = np.cumsum(aoi_values) / np.arange(1, len(aoi_values) + 1)
-    
-    if len(moving_averages) == 0:
-        print("Warning: Moving averages result is empty, skipping plot.")
-        return
-    
+    moving_averages = []
+
+    current_aoi = 0
+    aoi_sum = 0
+    count = 0
+    for index, aoi in enumerate(aoi_values):
+        current_aoi = aoi
+        aoi_sum += current_aoi
+        count += 1
+
+        moving_averages.append((aoi_sum / count) * slot_duration)
+
+        if index != len(aoi_values) - 1:
+            for i in range(asn_values[index], asn_values[index+1]):
+                current_aoi += 1
+                aoi_sum += current_aoi
+                count += 1
+                moving_averages.append((aoi_sum / count) * slot_duration)
+
+    asn_values = np.arange(1, len(moving_averages) + 1)
+
     plt.figure(figsize=(10, 6))
     plt.plot(asn_values, moving_averages, marker='o', linestyle='-', color='green')
     plt.xlabel('Time')
@@ -184,22 +206,20 @@ def plot_peaks_moving_average(asn_values, aoi_values, subFolder="", index=0):
         print("Warning: AOI values are empty, skipping peak plot.")
         return
     
-    # Calculate the cumulative moving average
-    moving_averages = np.cumsum(aoi_values) / np.arange(1, len(aoi_values) + 1)
-    
-    if len(moving_averages) == 0:
-        print("Warning: Moving averages result is empty, skipping plot.")
-        return
-    
-    peaks, _ = find_peaks(moving_averages)
-    
-    if len(peaks) == 0:
-        print("Warning: No peaks found, skipping peak plot.")
-        return
+    moving_averages = []
+
+    aoi_sum = 0
+    count = 0
+    for index, aoi in enumerate(aoi_values):
+        aoi_sum += aoi
+        count += 1
+
+        moving_averages.append(aoi_sum / count)
+
+    asn_values = np.arange(1, len(moving_averages) + 1)
     
     plt.figure(figsize=(10, 6))
     plt.plot(asn_values, moving_averages, label='Cumulative Moving Average', color='green')
-    plt.plot(np.array(asn_values)[peaks], moving_averages[peaks], marker='o', linestyle='None', color='red', label='Peaks')
     
     plt.xlabel('Time')
     plt.ylabel('Cumulative Moving Average of AOI')
@@ -207,7 +227,7 @@ def plot_peaks_moving_average(asn_values, aoi_values, subFolder="", index=0):
     plt.legend()
     plt.grid(True)
     
-    savefig(subFolder, "peaks_cumulative_moving_average_aoi_" + str(index) + ".cdf")
+    savefig(subFolder, "peaks_cumulative_moving_average_aoi")
 
     plt.close()
 
@@ -215,23 +235,10 @@ def plot_peak_data(asn_values, aoi_values, subFolder="", index=0):
     if len(aoi_values) == 0:
         print("Warning: AOI values are empty, skipping peak data plot.")
         return
-    
-    # Calculate the cumulative moving average
-    moving_averages = np.cumsum(aoi_values) / np.arange(1, len(aoi_values) + 1)
-    
-    if len(moving_averages) == 0:
-        print("Warning: Moving averages result is empty, skipping plot.")
-        return
-    
-    peaks, _ = find_peaks(moving_averages)
-    
-    if len(peaks) == 0:
-        print("Warning: No peaks found, skipping peak data plot.")
-        return
-    
+        
     plt.figure(figsize=(10, 6))
     plt.plot(asn_values, aoi_values, label='AOI', color='blue')
-    plt.plot(np.array(asn_values)[peaks], np.array(aoi_values)[peaks], marker='o', linestyle='None', color='red', label='Peaks')
+    plt.plot(asn_values, aoi_values, marker='o', linestyle='None', color='red', label='Peaks')
     
     plt.xlabel('Time')
     plt.ylabel('AOI')
