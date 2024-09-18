@@ -68,6 +68,9 @@ def kpis_all(inputfile):
     golabi={}
     packet_received_time={}
 
+    feedback_addition = 0
+    feedback_deletion = 0
+
     file_settings = json.loads(inputfile.readline())  # first line contains settings
     exec_numSlotframesPerRun = file_settings['exec_numSlotframesPerRun']
     tsch_slotframeLength = file_settings['tsch_slotframeLength']-1
@@ -194,6 +197,13 @@ def kpis_all(inputfile):
             allstats[run_id][mote_id]['charge_asn'] = asn
             allstats[run_id][mote_id]['charge']     = charge
 
+        elif logline['_type'] == SimLog.LOG_ASF_ACTION['type']:
+            action = logline['action']
+            if action == d.SIXP_FEEDBACK_ACTION_ADD:
+                feedback_addition += 1
+            elif action == d.SIXP_FEEDBACK_ACTION_DELETE:
+                feedback_deletion += 1
+
     # === compute advanced motestats
 
    
@@ -209,12 +219,12 @@ def kpis_all(inputfile):
 
         for item in packet_received_time[run_id][mote_id]:
             if prev_packet != None:
-                aoi_vector[run_id][mote_id].append({'asn':item['asn']*slot_duration,'aoi':(item['asn']-prev_packet['tx_asn'])*slot_duration})
-                aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn']-prev_packet['tx_asn'])})
-            aoi_vector[run_id][mote_id].append({'asn':item['asn']*slot_duration,'aoi':(item['asn']-item['tx_asn'])*slot_duration})
-            aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn']-item['tx_asn'])})
+                aoi_vector[run_id][mote_id].append({'asn':item['asn'], 'aoi':(item['asn'] - prev_packet['tx_asn'])})
+                aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn'] - prev_packet['tx_asn'])})
+            aoi_vector[run_id][mote_id].append({'asn':item['asn'], 'aoi':(item['asn'] - item['tx_asn'])})
+            aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn'] - item['tx_asn'])})
             prev_packet=item  
-        allstats[run_id][mote_id]['aoi']=aoi_vector[run_id][mote_id]
+        allstats[run_id][mote_id]['aoi'] = aoi_vector[run_id][mote_id]
 
     for (run_id, per_mote_stats) in list(allstats.items()):
         for (mote_id, motestats) in list(per_mote_stats.items()):
@@ -299,19 +309,19 @@ def kpis_all(inputfile):
             # average values for aoi in every asns
             current_aoi = 0
             asn_sum = 0
-            asn_num = 0
+            asn_count = 0
             for index, event in enumerate(aoi_stats[run_id][0]):
                 current_aoi = event['aoi']
-                asn_num += current_aoi
-                asn_sum += 1
+                asn_sum += current_aoi
+                asn_count += 1
 
                 if index != len(aoi_stats[run_id][0]) - 1:
                     for i in range(event['asn'], aoi_stats[run_id][0][index+1]['asn']):
-                        current_aoi+=1
-                        asn_num += current_aoi
-                        asn_sum += 1
+                        current_aoi += 1
+                        asn_sum += current_aoi
+                        asn_count += 1
 
-            average_aoi = (asn_num/asn_sum) * slot_duration
+            average_aoi = (asn_sum / asn_count) * slot_duration
 
             # variance of aoi
             variance_aoi = 0
@@ -338,6 +348,18 @@ def kpis_all(inputfile):
                     'name': 'Variance of Age of Information',
                     'unit': 's',
                     'value': variance_aoi
+                }
+            ],
+            'feedbacks': [
+                {
+                    'name': 'Number of Addition Requests',
+                    'unit': 'Packets',
+                    'value': feedback_addition
+                },
+                {
+                    'name': 'Number of Deletion Requests',
+                    'unit': 'Packets',
+                    'value': feedback_deletion
                 }
             ],
             'e2e-upstream-delivery': [
