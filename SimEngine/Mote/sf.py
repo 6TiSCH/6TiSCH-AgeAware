@@ -241,6 +241,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 aoi_sum += aoi
             
             aoi_avg = aoi_sum / len(self.pkt_list[received_packet[u'mac'][u'srcMac']])
+            aoi_avg *= self.settings.tsch_slotDuration
 
             # get min and max thresholds
             min, max = self._get_aoi_min_max_thresholds(received_packet[u'mac'][u'srcMac'])
@@ -255,12 +256,13 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
                 }
             )
 
-            # check if the average age of information is within the thresholds
-            # if not, send feedback to the mote
-            if aoi_avg < min :
-                self._send_feedback(received_packet[u'mac'][u'srcMac'], "delete")
-            elif aoi_avg > max:
-                self._send_feedback(received_packet[u'mac'][u'srcMac'], "add")
+            if self.settings.feedback == 'Feedback' or self.settings.feedback == 'AMSF':
+                # check if the average age of information is within the thresholds
+                # if not, send feedback to the mote
+                if aoi_avg < min :
+                    self._send_feedback(received_packet[u'mac'][u'srcMac'], "delete")
+                elif aoi_avg > max:
+                    self._send_feedback(received_packet[u'mac'][u'srcMac'], "add")
 
             # clear the list
             self.pkt_list[received_packet[u'mac'][u'srcMac']] = []

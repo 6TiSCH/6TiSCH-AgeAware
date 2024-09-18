@@ -855,7 +855,7 @@ class Tsch(object):
                 received_packet = packet
             )
 
-        if self.settings.feedback != 'NoFeedback' and active_cell:
+        if active_cell:
             assert active_cell.is_rx_on()
             # store age of the received packet in root
             if (self.mote.dagRoot and 
