@@ -302,7 +302,7 @@ def kpis_all(inputfile):
         us_latencies = []
         current_consumed = []
         lifetimes = []
-        average_aoi = 0
+        average_aoi_seconds = 0
 
         #-- compute stats
 
@@ -336,32 +336,36 @@ def kpis_all(inputfile):
 
             # average values for aoi in every asns
             current_aoi = 0
-            asn_sum = 0
+            aoi_sum = 0
             asn_count = 0
             for index, event in enumerate(aoi_vector[run_id][0]):
                 current_aoi = event['aoi']
-                asn_sum += current_aoi
+                aoi_sum += current_aoi
                 asn_count += 1
 
                 if index != len(aoi_vector[run_id][0]) - 1:
                     for i in range(event['asn'], aoi_vector[run_id][0][index + 1]['asn']):
                         current_aoi += 1
-                        asn_sum += current_aoi
+                        aoi_sum += current_aoi
                         asn_count += 1
 
-            average_aoi = (asn_sum / asn_count) * slot_duration
+            average_aoi_seconds = (aoi_sum / asn_count) * slot_duration
+            average_aoi_asn = aoi_sum / asn_count
 
             # variance of aoi
             variance_aoi = 0
+            variance_count = 0
+            min_aoi = min([event['aoi'] for event in aoi_vector[run_id][0]]) 
             for index, event in enumerate(aoi_vector[run_id][0]):
-                variance_aoi += (event['aoi'] - average_aoi) ** 2
+                variance_aoi += (event['aoi'] - min_aoi) ** 2
+                variance_count += 1
 
                 if index != len(aoi_vector[run_id][0]) - 1:
                     for i in range(event['asn'], aoi_vector[run_id][0][index+1]['asn']):
-                        variance_aoi += (current_aoi - average_aoi) ** 2
+                        variance_aoi += (current_aoi - min_aoi) ** 2
+                        variance_count += 1
 
-            variance_aoi = variance_aoi / (asn_sum - 1)
-            variance_aoi = variance_aoi * slot_duration
+            variance_aoi = (variance_aoi / variance_count) * slot_duration
 
         #-- save stats
 
@@ -495,7 +499,12 @@ def kpis_all(inputfile):
                 {
                     'name': 'Average Age of Information',
                     'unit': 's',
-                    'value': average_aoi
+                    'value': average_aoi_seconds
+                },
+                {
+                    'name': 'Average Age of Information',
+                    'unit': 'asn',
+                    'value': average_aoi_asn
                 },
                 {
                     'name': 'Variance of Age of Information',
