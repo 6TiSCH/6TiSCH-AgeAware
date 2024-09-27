@@ -370,7 +370,9 @@ def kpis_all(inputfile):
                         variance_aoi += (current_aoi - min_aoi) ** 2
                         variance_count += 1
 
-            variance_aoi = (variance_aoi / variance_count) * slot_duration
+            variance_aoi = -1
+            if variance_count > 0:
+                variance_aoi = (variance_aoi / variance_count) * slot_duration
 
         #-- save stats
 
@@ -583,8 +585,9 @@ def main():
         # gather the kpis
         kpis = kpis_all(infile)
 
-        # print on the terminal
-        print(json.dumps(kpis, indent=4))
+        # print on the terminal if number of runs is less than 5
+        if len(kpis) < 5:
+            print(json.dumps(kpis, indent=4))
 
         # add to the data folder
         outfile = '{0}.kpi'.format(infile)
