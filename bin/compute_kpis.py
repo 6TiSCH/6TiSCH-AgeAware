@@ -64,9 +64,8 @@ def init_mote():
 def kpis_all(inputfile):
 
     allstats = {} # indexed by run_id, mote_id
-    aoi_stats = {}
-    golabi={}
-    packet_received_time={}
+    golabi = {}
+    packet_received_time = {}
 
     feedback_addition = 0
     feedback_deletion = 0
@@ -93,7 +92,7 @@ def kpis_all(inputfile):
         if run_id not in allstats:
             allstats[run_id] = {}
             golabi[run_id] = {}
-            packet_received_time[run_id]={}
+            packet_received_time[run_id] = {}
 
         if (
                 ('_mote_id' in logline)
@@ -103,8 +102,8 @@ def kpis_all(inputfile):
                 # (mote_id != DAGROOT_ID)
             ):
             allstats[run_id][mote_id] = init_mote()
-            golabi[run_id][mote_id]=[]
-            packet_received_time[run_id][mote_id]=[]
+            golabi[run_id][mote_id] = []
+            packet_received_time[run_id][mote_id] = []
         # sync new mote (sync'ed)
         if   logline['_type'] == SimLog.LOG_TSCH_SYNCED['type']:
 
@@ -175,8 +174,14 @@ def kpis_all(inputfile):
                 d.IPV6_DEFAULT_HOP_LIMIT - hop_limit + 1
             )
             allstats[run_id][mote_id]['upstream_pkts'][appcounter]['rx_asn'] = asn
-            golabi[run_id][mote_id].append({'asn':asn,'tx_asn':generationTime})
-            packet_received_time[run_id][mote_id_reciever].append({'asn':asn,'tx_asn':generationTime})
+
+            golabi[run_id][mote_id].append({'asn':asn, 'tx_asn':generationTime})
+            packet_received_time[run_id][mote_id_reciever].append(
+            {
+                'asn': asn,
+                'tx_asn': generationTime,
+                'generator_id': mote_id
+            })
 
         # calculate charge usage
         elif logline['_type'] == SimLog.LOG_RADIO_STATS['type']:
@@ -204,27 +209,50 @@ def kpis_all(inputfile):
             elif action == d.SIXP_FEEDBACK_ACTION_DELETE:
                 feedback_deletion += 1
 
-    # === compute advanced motestats
-
+    # === aoi stats
    
-    aoi_vector={} 
-    aoi_stats[run_id] = {}
-
+    aoi_vector = {} 
     for (run_id, per_mote_stats) in list(allstats.items()):
-        aoi_vector[run_id]={}
+        aoi_vector[run_id] = {}
         mote_id = 0
         aoi_vector[run_id][mote_id] = []
-        aoi_stats[run_id][mote_id] = []
-        prev_packet=None
 
-        for item in packet_received_time[run_id][mote_id]:
-            if prev_packet != None:
-                aoi_vector[run_id][mote_id].append({'asn':item['asn'], 'aoi':(item['asn'] - prev_packet['tx_asn'])})
-                aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn'] - prev_packet['tx_asn'])})
-            aoi_vector[run_id][mote_id].append({'asn':item['asn'], 'aoi':(item['asn'] - item['tx_asn'])})
-            aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn'] - item['tx_asn'])})
-            prev_packet=item  
+        # hold the most fresh pkt received by each sender
+        prev_packets = {}
+
+        for received_packet in packet_received_time[run_id][mote_id]:
+            sender_id = received_packet['generator_id']
+            prev_packet = prev_packets.get(sender_id, None)
+
+            if prev_packet == None:
+                # first packet
+                aoi_vector[run_id][mote_id].append({'asn':received_packet['asn'], 'aoi':(received_packet['asn'] - received_packet['tx_asn'])})
+                # prev_packet = received_packet
+                prev_packets[sender_id] = received_packet
+                continue
+
+            if received_packet['tx_asn'] > prev_packet['tx_asn']:
+                # up the hill
+                aoi_vector[run_id][mote_id].append({'asn':received_packet['asn'], 'aoi':(received_packet['asn'] - prev_packet['tx_asn'])})
+
+                # down the hill
+                aoi_vector[run_id][mote_id].append({'asn':received_packet['asn'], 'aoi':(received_packet['asn'] - received_packet['tx_asn'])})
+
+                # prev_packet = received_packet
+                prev_packets[sender_id] = received_packet
+
+            # if prev_packet != None:
+            #     # up the hill
+            #     aoi_vector[run_id][mote_id].append({'asn':item['asn'], 'aoi':(item['asn'] - prev_packet['tx_asn'])})
+            #     aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn'] - prev_packet['tx_asn'])})
+            
+            # # down the hill
+            # aoi_vector[run_id][mote_id].append({'asn':item['asn'], 'aoi':(item['asn'] - item['tx_asn'])})
+            # aoi_stats[run_id][mote_id].append({'asn':item['asn'],'aoi':(item['asn'] - item['tx_asn'])})
+            # prev_packet=item  
         allstats[run_id][mote_id]['aoi'] = aoi_vector[run_id][mote_id]
+
+    # === compute advanced motestats
 
     for (run_id, per_mote_stats) in list(allstats.items()):
         for (mote_id, motestats) in list(per_mote_stats.items()):
@@ -274,7 +302,7 @@ def kpis_all(inputfile):
         us_latencies = []
         current_consumed = []
         lifetimes = []
-        average_aoi = 0
+        average_aoi_seconds = 0
 
         #-- compute stats
 
@@ -308,60 +336,40 @@ def kpis_all(inputfile):
 
             # average values for aoi in every asns
             current_aoi = 0
-            asn_sum = 0
+            aoi_sum = 0
             asn_count = 0
-            for index, event in enumerate(aoi_stats[run_id][0]):
+            for index, event in enumerate(aoi_vector[run_id][0]):
                 current_aoi = event['aoi']
-                asn_sum += current_aoi
+                aoi_sum += current_aoi
                 asn_count += 1
 
-                if index != len(aoi_stats[run_id][0]) - 1:
-                    for i in range(event['asn'], aoi_stats[run_id][0][index+1]['asn']):
+                if index != len(aoi_vector[run_id][0]) - 1:
+                    for i in range(event['asn'], aoi_vector[run_id][0][index + 1]['asn']):
                         current_aoi += 1
-                        asn_sum += current_aoi
+                        aoi_sum += current_aoi
                         asn_count += 1
 
-            average_aoi = (asn_sum / asn_count) * slot_duration
+            average_aoi_seconds = (aoi_sum / asn_count) * slot_duration
+            average_aoi_asn = aoi_sum / asn_count
 
             # variance of aoi
             variance_aoi = 0
-            for index, event in enumerate(aoi_stats[run_id][0]):
-                variance_aoi += (event['aoi'] - average_aoi) ** 2
+            variance_count = 0
+            min_aoi = min([event['aoi'] for event in aoi_vector[run_id][0]]) 
+            for index, event in enumerate(aoi_vector[run_id][0]):
+                variance_aoi += (event['aoi'] - min_aoi) ** 2
+                variance_count += 1
 
-                if index != len(aoi_stats[run_id][0]) - 1:
-                    for i in range(event['asn'], aoi_stats[run_id][0][index+1]['asn']):
-                        variance_aoi += (current_aoi - average_aoi) ** 2
+                if index != len(aoi_vector[run_id][0]) - 1:
+                    for i in range(event['asn'], aoi_vector[run_id][0][index+1]['asn']):
+                        variance_aoi += (current_aoi - min_aoi) ** 2
+                        variance_count += 1
 
-            variance_aoi = variance_aoi / (asn_sum - 1)
-            variance_aoi = variance_aoi * slot_duration
+            variance_aoi = (variance_aoi / variance_count) * slot_duration
 
         #-- save stats
 
         allstats[run_id]['global-stats'] = {
-            'aoi': [
-                {
-                    'name': 'Average Age of Information',
-                    'unit': 's',
-                    'value': average_aoi
-                },
-                {
-                    'name': 'Variance of Age of Information',
-                    'unit': 's',
-                    'value': variance_aoi
-                }
-            ],
-            'feedbacks': [
-                {
-                    'name': 'Number of Addition Requests',
-                    'unit': 'Packets',
-                    'value': feedback_addition
-                },
-                {
-                    'name': 'Number of Deletion Requests',
-                    'unit': 'Packets',
-                    'value': feedback_deletion
-                }
-            ],
             'e2e-upstream-delivery': [
                 {
                     'name': 'E2E Upstream Delivery Ratio',
@@ -485,6 +493,35 @@ def kpis_all(inputfile):
                 {
                     'name': 'Number of application packets lost',
                     'total': app_packets_lost
+                }
+            ],
+            'aoi_stats': [
+                {
+                    'name': 'Average Age of Information',
+                    'unit': 's',
+                    'value': average_aoi_seconds
+                },
+                {
+                    'name': 'Average Age of Information',
+                    'unit': 'asn',
+                    'value': average_aoi_asn
+                },
+                {
+                    'name': 'Variance of Age of Information',
+                    'unit': 's',
+                    'value': variance_aoi
+                }
+            ],
+            'aoi_feedbacks': [
+                {
+                    'name': 'Number of Addition Requests',
+                    'unit': 'Packets',
+                    'value': feedback_addition
+                },
+                {
+                    'name': 'Number of Deletion Requests',
+                    'unit': 'Packets',
+                    'value': feedback_deletion
                 }
             ]
         }

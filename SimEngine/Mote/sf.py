@@ -140,7 +140,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
     NUM_INITIAL_NEGOTIATED_RX_CELLS = 0
     
     # root receives packets from motes and stores them in a list
-    # [IP] = [ { age_of_pkt } ]
+    # [IP] = [ { generation_time, age_of_pkt } ]
     pkt_list = {}
 
     def __init__(self, mote):
@@ -225,45 +225,55 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # assert that pkt receiver is root
         assert self.mote.dagRoot
 
-        # store the age of pkt in the list
-        aoi = self.engine.getAsn() - received_packet[u'app'][u'timestamp']
+        sender_mac = received_packet[u'mac'][u'srcMac']
+        packet_gen_time = received_packet[u'app'][u'timestamp']
+        aoi = self.engine.getAsn() - packet_gen_time
 
-        # check that the pkt is not already in the list
-        if received_packet[u'mac'][u'srcMac'] not in self.pkt_list:
-            self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
+        # check to create entry for generator the mote
+        if sender_mac not in self.pkt_list:
+            self.pkt_list[sender_mac] = []
 
-        self.pkt_list[received_packet[u'mac']['srcMac']].append(aoi)
+        # check if the packet is generated after the last received packet from the mote
+        addPacket = (len(self.pkt_list[sender_mac]) == 0 or 
+                    packet_gen_time > self.pkt_list[sender_mac][-1]['generation_time'])
+        if addPacket == True:
+            # store the age of pkt in the list
+            self.pkt_list[sender_mac].append(
+            {
+                'generation_time' : packet_gen_time,
+                'age_of_pkt'      : aoi
+            })
 
         # check if time to send feedback to the mote
-        if len(self.pkt_list[received_packet[u'mac'][u'srcMac']]) == self._max_recevied_packets_in_root():
+        if len(self.pkt_list[sender_mac]) == self._max_recevied_packets_in_root():
             aoi_sum = 0
-            for aoi in self.pkt_list[received_packet[u'mac'][u'srcMac']]:
-                aoi_sum += aoi
+            for rc_pkt in self.pkt_list[sender_mac]:
+                aoi_sum += rc_pkt['age_of_pkt']
             
-            aoi_avg = aoi_sum / len(self.pkt_list[received_packet[u'mac'][u'srcMac']])
+            aoi_avg = aoi_sum / len(self.pkt_list[sender_mac])
 
             # get min and max thresholds
-            min, max = self._get_aoi_min_max_thresholds(received_packet[u'mac'][u'srcMac'])
+            #TODO: calculate the thresholds based on the hop count
+            min, max = self._get_aoi_min_max_thresholds(sender_mac)
 
-            #TODO:LOG the aoi_avg
             self.log(
                 SimEngine.SimLog.LOG_ASF_AVERAGE,
                 {
                     u'_mote_id'    : self.mote.id,
                     u'average'     : aoi_avg,
-                    u'neighbor'    : received_packet[u'mac'][u'srcMac'],
+                    u'neighbor'    : sender_mac,
                 }
             )
 
             # check if the average age of information is within the thresholds
             # if not, send feedback to the mote
             if aoi_avg < min :
-                self._send_feedback(received_packet[u'mac'][u'srcMac'], d.SIXP_FEEDBACK_ACTION_DELETE)
+                self._send_feedback(sender_mac, d.SIXP_FEEDBACK_ACTION_DELETE)
             elif aoi_avg > max:
-                self._send_feedback(received_packet[u'mac'][u'srcMac'], d.SIXP_FEEDBACK_ACTION_ADD)
+                self._send_feedback(sender_mac, d.SIXP_FEEDBACK_ACTION_ADD)
 
             # clear the list
-            self.pkt_list[received_packet[u'mac'][u'srcMac']] = []
+            self.pkt_list[sender_mac] = []
 
     def indication_neighbor_added(self, neighbor_mac_addr):
         pass
