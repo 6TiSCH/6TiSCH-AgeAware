@@ -349,8 +349,11 @@ def kpis_all(inputfile):
                         aoi_sum += current_aoi
                         asn_count += 1
 
-            average_aoi_seconds = (aoi_sum / asn_count) * slot_duration
-            average_aoi_asn = aoi_sum / asn_count
+            average_aoi_seconds = -1
+            average_aoi_asn = -1
+            if asn_count > 0:
+                average_aoi_seconds = (aoi_sum / asn_count) * slot_duration
+                average_aoi_asn = aoi_sum / asn_count
 
             # variance of aoi
             variance_aoi = 0
