@@ -104,6 +104,17 @@ def main(options):
 
         except TypeError as e:
             print("Cannot create a plot for {0}: {1}.".format(key, e))
+    
+    
+    #plot aoi in 100 run
+    list_of_aoi=[]
+    index=0
+    for item in kpis.values():
+        aoi_stats=item['global-stats']['aoi_stats'][0]['value']
+        if aoi_stats:
+            list_of_aoi.append((index,aoi_stats))
+        index+=1 
+    plot_aoi_per_run(list_of_aoi,subFolder=subfolder)
     print("Plots are saved in the {0} folder.".format(subfolder))
 
 # =========================== helpers =========================================
@@ -279,6 +290,42 @@ def plot_variance_near_min(asn_values, aoi_values, subFolder="", index=0):
     plt.grid(True)
 
     savefig(subFolder, "variance_from_global_min_aoi_" + str(index))
+
+    plt.close()
+
+def plot_aoi_per_run(data_tuples, subFolder=""):
+    if len(data_tuples) == 0:
+        print("Warning: Data tuples are empty, skipping moving average plot.")
+        return
+
+    # Extracting the index and AOI values from the tuples
+    indices = [int(t[0]) for t in data_tuples]  # Extract index values (x-axis)
+    aoi_values = [t[1] for t in data_tuples]    # Extract AOI values (y-axis)
+
+    # Compute the moving average with a sliding window
+    moving_averages = []
+    current_avg_aoi = 0
+    aoi_avg_sum = 0
+    count = 0
+    for index,aoi in enumerate(aoi_values):
+        current_avg_aoi = aoi
+        aoi_avg_sum += current_avg_aoi
+        count += 1
+        moving_averages.append((aoi_avg_sum / count))
+
+
+    aoi_values=np.arange(1,len(moving_averages)+1)
+   
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(aoi_values, moving_averages, linestyle='-', color='blue')
+    
+    plt.xlabel('Runs')
+    plt.ylabel('Moving Average (AOI values)')
+    plt.title('Average of AOI per Run')
+    plt.grid(True)    
+    # Save the figure if necessary (optional)
+    savefig(subFolder, "aoi_per_run")
 
     plt.close()
 

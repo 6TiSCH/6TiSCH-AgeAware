@@ -349,13 +349,18 @@ def kpis_all(inputfile):
                         aoi_sum += current_aoi
                         asn_count += 1
 
-            average_aoi_seconds = (aoi_sum / asn_count) * slot_duration
-            average_aoi_asn = aoi_sum / asn_count
+            average_aoi_seconds = -1
+            average_aoi_asn = -1
+            if asn_count > 0:
+                average_aoi_seconds = (aoi_sum / asn_count) * slot_duration
+                average_aoi_asn = aoi_sum / asn_count
 
             # variance of aoi
             variance_aoi = 0
             variance_count = 0
-            min_aoi = min([event['aoi'] for event in aoi_vector[run_id][0]]) 
+            min_aoi = 0
+            if len(aoi_vector[run_id][0]) > 0:
+                min_aoi = min([event['aoi'] for event in aoi_vector[run_id][0]]) 
             for index, event in enumerate(aoi_vector[run_id][0]):
                 variance_aoi += (event['aoi'] - min_aoi) ** 2
                 variance_count += 1
@@ -365,7 +370,9 @@ def kpis_all(inputfile):
                         variance_aoi += (current_aoi - min_aoi) ** 2
                         variance_count += 1
 
-            variance_aoi = (variance_aoi / variance_count) * slot_duration
+            variance_aoi = -1
+            if variance_count > 0:
+                variance_aoi = (variance_aoi / variance_count) * slot_duration
 
         #-- save stats
 
@@ -578,8 +585,9 @@ def main():
         # gather the kpis
         kpis = kpis_all(infile)
 
-        # print on the terminal
-        print(json.dumps(kpis, indent=4))
+        # print on the terminal if number of runs is less than 5
+        if len(kpis) < 5:
+            print(json.dumps(kpis, indent=4))
 
         # add to the data folder
         outfile = '{0}.kpi'.format(infile)
