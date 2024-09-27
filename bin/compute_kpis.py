@@ -358,7 +358,9 @@ def kpis_all(inputfile):
             # variance of aoi
             variance_aoi = 0
             variance_count = 0
-            min_aoi = min([event['aoi'] for event in aoi_vector[run_id][0]]) 
+            min_aoi = 0
+            if len(aoi_vector[run_id][0]) > 0:
+                min_aoi = min([event['aoi'] for event in aoi_vector[run_id][0]]) 
             for index, event in enumerate(aoi_vector[run_id][0]):
                 variance_aoi += (event['aoi'] - min_aoi) ** 2
                 variance_count += 1
