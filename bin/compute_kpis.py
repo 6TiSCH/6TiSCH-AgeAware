@@ -67,8 +67,8 @@ def kpis_all(inputfile):
     golabi = {}
     packet_received_time = {}
 
-    feedback_addition = 0
-    feedback_deletion = 0
+    feedback_addition = {}
+    feedback_deletion = {}
 
     file_settings = json.loads(inputfile.readline())  # first line contains settings
     exec_numSlotframesPerRun = file_settings['exec_numSlotframesPerRun']
@@ -93,6 +93,8 @@ def kpis_all(inputfile):
             allstats[run_id] = {}
             golabi[run_id] = {}
             packet_received_time[run_id] = {}
+            feedback_addition[run_id] = 0
+            feedback_deletion[run_id] = 0
 
         if (
                 ('_mote_id' in logline)
@@ -205,9 +207,9 @@ def kpis_all(inputfile):
         elif logline['_type'] == SimLog.LOG_ASF_ACTION['type']:
             action = logline['action']
             if action == d.SIXP_FEEDBACK_ACTION_ADD:
-                feedback_addition += 1
+                feedback_addition[run_id] += 1
             elif action == d.SIXP_FEEDBACK_ACTION_DELETE:
-                feedback_deletion += 1
+                feedback_deletion[run_id] += 1
 
     # === aoi stats
    
@@ -516,12 +518,12 @@ def kpis_all(inputfile):
                 {
                     'name': 'Number of Addition Requests',
                     'unit': 'Packets',
-                    'value': feedback_addition
+                    'value': feedback_addition[run_id]
                 },
                 {
                     'name': 'Number of Deletion Requests',
                     'unit': 'Packets',
-                    'value': feedback_deletion
+                    'value': feedback_deletion[run_id]
                 }
             ]
         }
@@ -545,7 +547,7 @@ def kpis_all(inputfile):
 # =========================== main ============================================
 
 def main():
-    inputfolder = os.listdir('simData')
+    #inputfolder = os.listdir('simData')
 
     # hard-coded config when debugging
     #inputfolder = 'C:/Arshia/6TiCSH-AgeAware/bin/simData'
