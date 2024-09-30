@@ -92,8 +92,8 @@ MSF_MIN_NUM_TX                              = 100  # min number for PDR to be si
 
 # === ASF
 ASF_MAX_NUMCELLS                            = 10
-ASF_LIM_AVERAGE_AOI_HIGH                    = 220 # in [0-1]
-ASF_LIM_AVERAGE_AOI_LOW                     = 100 # in [0-1]
+ASF_LIM_AVERAGE_AOI_HIGH                    = 100 # in [0-1]
+ASF_LIM_AVERAGE_AOI_LOW                     = 80 # in [0-1]
 
 # === tsch
 TSCH_MIN_BACKOFF_EXPONENT                   = 1

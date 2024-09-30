@@ -158,6 +158,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         self.locked_slots         = set([]) # slots in on-going ADD transactions
         self.retry_count          = {}      # indexed by MAC address
+        self.pkt_list             = {}      # indexed by MAC address
 
     # ======================= public ==========================================
 
@@ -236,6 +237,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         # check if the packet is generated after the last received packet from the mote
         addPacket = (len(self.pkt_list[sender_mac]) == 0 or 
                     packet_gen_time > self.pkt_list[sender_mac][-1]['generation_time'])
+        
         if addPacket == True:
             # store the age of pkt in the list
             self.pkt_list[sender_mac].append(
