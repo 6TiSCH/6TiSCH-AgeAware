@@ -69,6 +69,7 @@ def kpis_all(inputfile):
 
     feedback_addition = {}
     feedback_deletion = {}
+    aoi_average_in_root = {} # indexed by run_id, { 'asn', 'aoi_average' }
 
     file_settings = json.loads(inputfile.readline())  # first line contains settings
     exec_numSlotframesPerRun = file_settings['exec_numSlotframesPerRun']
@@ -95,6 +96,7 @@ def kpis_all(inputfile):
             packet_received_time[run_id] = {}
             feedback_addition[run_id] = 0
             feedback_deletion[run_id] = 0
+            aoi_average_in_root[run_id] = []
 
         if (
                 ('_mote_id' in logline)
@@ -210,6 +212,14 @@ def kpis_all(inputfile):
                 feedback_addition[run_id] += 1
             elif action == d.SIXP_FEEDBACK_ACTION_DELETE:
                 feedback_deletion[run_id] += 1
+
+        elif logline['_type'] == SimLog.LOG_ASF_AVERAGE['type']:
+            if logline['_mote_id'] == DAGROOT_ID:
+                aoi_average_in_root[run_id].append({
+                    'asn': logline['_asn'],
+                    'aoi_average': logline['average']
+                })
+
 
     # === aoi stats
    
@@ -531,6 +541,10 @@ def kpis_all(inputfile):
                     'name': 'Number of Deletion Requests',
                     'unit': 'Packets',
                     'value': feedback_deletion[run_id]
+                },
+                {
+                    'name': 'Asf_Averages',
+                    'value': aoi_average_in_root[run_id]
                 }
             ]
         }
