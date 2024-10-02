@@ -317,6 +317,9 @@ def main():
 
     # merge output files
     folder_path = os.path.join('simData', simconfig.get_log_directory_name())
+    if os.path.exists(folder_path) == False:
+        folder_path = os.path.join(bin_folder, folder_path)
+        
     merge_output_files(folder_path)
 
     # copy config file into output directory

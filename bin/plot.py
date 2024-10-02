@@ -34,7 +34,8 @@ KPIS = [
     'sync_time_s',
     'join_time_s',
     'upstream_num_lost',
-    'aoi'
+    'aoi',
+    'Asf_Averages',
 ]
 
 # ============================ main ===========================================
@@ -68,12 +69,12 @@ def main(options):
     )
     subfolder = max(subfolders, key=os.path.getmtime)
 
+    # print input folder read from data
+    print("Input folder: {0}".format(subfolder))
+
     # read the config.json file to get settings values
     with open(os.path.join(subfolder, 'config.json'), 'r') as f:
         settings = json.load(f)
-
-    # # read the tsch_slotDuration from the settings
-    # tsch_slotDuration = 
 
     for key in options.kpis:
         # load data
@@ -93,12 +94,18 @@ def main(options):
                         if key in mote:
                             data[curr_combination].append(mote[key])
 
+                if key == 'Asf_Averages':
+                    for run in kpis.values():
+                        data[curr_combination].append(run['global-stats']['aoi_feedbacks'][2]['value'])
+
         # plot
         try:
             if key in ['lifetime_AA_years', 'latencies']:
                 plot_cdf(data, key, subfolder)
             elif key == 'aoi':
                 plot_aoi(data, settings, subfolder)
+            elif key == 'Asf_Averages':
+                plot_aoi_feedback(data, settings, subfolder)
             else:
                 plot_box(data, key, subfolder)
 
@@ -107,14 +114,14 @@ def main(options):
     
     
     #plot aoi in 100 run
-    list_of_aoi=[]
-    index=0
-    for item in kpis.values():
-        aoi_stats=item['global-stats']['aoi_stats'][0]['value']
+    list_of_aoi = []
+    for key, item in kpis.items():
+        aoi_stats = item['global-stats']['aoi_stats'][0]['value']
         if aoi_stats:
-            list_of_aoi.append((index,aoi_stats))
-        index+=1 
-    plot_aoi_per_run(list_of_aoi,subFolder=subfolder)
+            list_of_aoi.append((key, aoi_stats))
+    list_of_aoi = sorted(list_of_aoi, key=lambda x: int(x[0]))
+    print(list_of_aoi)
+    plot_aoi_per_run(list_of_aoi, subFolder=subfolder)
     print("Plots are saved in the {0} folder.".format(subfolder))
 
 # =========================== helpers =========================================
@@ -328,6 +335,31 @@ def plot_aoi_per_run(data_tuples, subFolder=""):
     savefig(subFolder, "aoi_per_run")
 
     plt.close()
+
+def plot_aoi_feedback(data, settings, subFolder):
+    # use data in 'asn' , 'aoi_average' and plot it
+    for k, values in data.items():
+        asn_values = [int(item["asn"]) for item in values[0]]
+        aoi_values = [int(item["aoi_average"]) for item in values[0]]
+
+        # Plotting the data
+        plt.figure(figsize=(10, 6))
+        plt.plot(asn_values, aoi_values, marker='o', color='blue')
+
+        # also add a line indicating the average of the AOI values
+        average_aoi = sum(aoi_values) / len(aoi_values)
+        plt.axhline(y=average_aoi, color='r', linestyle='--', label='Average AOI')
+        # and show value of the average in the line
+        plt.text(asn_values[-1], average_aoi, 'Average AOI: {0}'.format(average_aoi))
+
+        # Adding labels and title
+        plt.xlabel('Time')
+        plt.ylabel('AOI')
+        plt.title('AOI Average Calculated in Root')
+        plt.grid(True)
+        savefig(subFolder, "average_aoi_feedback_in_root")
+        plt.close()
+
 
 def savefig(output_folder, output_name, output_format="png"):
     # check if output folder exists and create it if not

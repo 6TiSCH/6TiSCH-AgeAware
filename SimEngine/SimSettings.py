@@ -59,6 +59,9 @@ class SimSettings(object):
             self.cpuID                = cpuID
             self.run_id               = run_id
             self.logRootDirectoryPath = os.path.abspath(log_root_dir)
+            # if logRootDirectoryPath does not contain the bin directory
+            if not os.path.exists(self.logRootDirectoryPath):
+                self.logRootDirectoryPath = os.path.join(os.getcwd(), 'bin', log_root_dir)
 
             if kwargs:
                 self.__dict__.update(kwargs)
