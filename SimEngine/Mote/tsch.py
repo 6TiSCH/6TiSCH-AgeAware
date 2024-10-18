@@ -44,7 +44,7 @@ class Tsch(object):
         # local variables
         self.slotframes       = {}
 
-        #TODO: convert to stack
+        # this will be Queue or Stack based on Configuratoins
         self.txQueue          = []
         if self.settings.tsch_tx_queue_size >= 0:
             self.txQueueSize  = self.settings.tsch_tx_queue_size
@@ -860,7 +860,7 @@ class Tsch(object):
             # store age of the received packet in root
             if (self.mote.dagRoot and 
                packet is not None and 
-               (packet[u'type'] == d.PKT_TYPE_DATA or packet[u'type'] == d.PKT_TYPE_FRAG)): 
+               (packet[u'type'] == d.PKT_TYPE_DATA)): 
                 self.mote.sf.indication_packet_for_root_receieved(received_packet = packet)
 
         return isACKed
