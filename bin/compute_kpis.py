@@ -223,6 +223,7 @@ def kpis_all(inputfile):
 
     # === aoi stats
    
+    #TODO: calculate age per receiver
     aoi_vector = {} 
     for (run_id, per_mote_stats) in list(allstats.items()):
         aoi_vector[run_id] = {}

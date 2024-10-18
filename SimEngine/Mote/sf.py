@@ -209,7 +209,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         action = pkt[u'app'][u'aoiAction']
 
-        #TODO:LOG adopt the action
         self.log(
             SimEngine.SimLog.LOG_ASF_ACTION,
             {
@@ -248,6 +247,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
 
         # check if time to send feedback to the mote
         if len(self.pkt_list[sender_mac]) == self._max_recevied_packets_in_root():
+            #TODO: some over all ASNs in that window
             aoi_sum = 0
             for rc_pkt in self.pkt_list[sender_mac]:
                 aoi_sum += rc_pkt['age_of_pkt']
@@ -291,7 +291,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
             ):
             self._update_cell_counters(self.TX_CELL_OPT, bool(sent_packet))
             # adapt number of cells if necessary
-            #TODO: Introduce new threshold based on AOI
             if d.MSF_MAX_NUMCELLS <= self.num_tx_cells_elapsed:
                 tx_cell_utilization = (
                     self.num_tx_cells_used /
@@ -585,7 +584,7 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         return min, max
     
     def _max_recevied_packets_in_root(self):
-        return d.ASF_MAX_NUMCELLS
+        return d.ASF_WINDOW_SIZE
 
     def _send_feedback(self, mac_addr, action):
         # send a sixp packet to the mote
@@ -604,7 +603,6 @@ class SchedulingFunctionMSF(SchedulingFunctionBase):
         preferred_parent = self.mote.rpl.getPreferredParent()
         self._update_cell_counters(self.RX_CELL_OPT, used_by_parent)
         # adapt number of cells if necessary
-        #TODO: Introduce new threshold based on AOI
         rx_cell_utilization = (
             self.num_rx_cells_used /
             float(self.num_rx_cells_elapsed)
